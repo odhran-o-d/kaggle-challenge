@@ -1,8 +1,8 @@
 # 2D plotting PCA 
-%matplotlib inline
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import seaborn as sns
+import pandas as pd
 no_of_labels=2
 def plot_myReducedDim(X_reduced, y, no_of_labels, method):
     #restructure the data
