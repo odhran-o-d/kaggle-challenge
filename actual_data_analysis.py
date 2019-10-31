@@ -89,6 +89,17 @@ def plot_myReducedDim(X_reduced, y, no_of_labels, method):
     plt.show()
 
 
+def code_to_numeric(labels):
+    code_dict = {code:num for num, code in enumerate(np.unique(labels))}
+    label_array = np.array(labels).reshape(labels.shape[0]).astype(str)
+    numeric_list = [code_dict[label] for label in label_array]
+
+    return numeric_list
+
+
+
+
+
 # %%
 # load the data 
 x_train = dt.fread('train.csv/train.csv')
@@ -102,14 +113,23 @@ x_test = x_test.to_pandas()
 imp = SimpleImputer(missing_values = -2, strategy = 'mean')
 X_norm = imp.fit_transform(x_train)
 
-keys = y_train.Population.unique()
+
+y_numeric = code_to_numeric(y_train)
+
+
+
+
+# %%
+# see if you can make this function not shit
+
+
+'''keys = y_train.Population.unique()
 values = list(range(1,26))
 dictionary = dict(zip(keys, values))
 
 y_train_numeric = y_train["Population"].map(dictionary)
+#y_train_numeric = y_train_numeric.values'''
 
-# %% 
-y_train_numeric = y_train_numeric.values
 
 
 # %%
@@ -134,7 +154,7 @@ print('the test dataset has the size', x_test.shape)
 
 # %%
 # dimension reduction 
-pca = PCA(n_components=900)
+pca = PCA(n_components=0.9)
 time_start = time.time()
 X_reduced=pca.fit_transform(X_norm)
 
@@ -152,26 +172,28 @@ plt.show()
 
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import cross_val_score
-k = 2
-accList=[]
-clf_knn = KNeighborsClassifier(n_neighbors=k,algorithm='auto')
-scores = cross_val_score(clf_knn, X_reduced, y_train_numeric, cv=10)
-score=scores.mean()
-accList.append(score)
 
 
-# %%
 
-k_array = list(range(2,40))
+
+k_array = list(range(2,20))
 
 accList = []
 
 for k in k_array:
-    clf_knn = KNeighborsClassifier(n_neighbors=k,algorithm='auto')
-    scores = cross_val_score(clf_knn, X_reduced, y_train_numeric, cv=10)
+    clf_knn = KNeighborsClassifier(n_neighbors=k)
+    scores = cross_val_score(clf_knn, X_reduced, y_numeric, cv=10)
     score=scores.mean()
     accList.append(score)
 
 print(accList)
 
 # %%
+
+clf_knn.fit(X_reduced, y_numeric)
+
+
+
+# %%
+
+run a cheeky LDA
