@@ -9,7 +9,7 @@ from sklearn.impute import SimpleImputer
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.manifold import TSNE
-from sklearn.decomposition import PCA, TruncatedSVD
+from sklearn.decomposition import PCA, TruncatedSVD, KernelPCA
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.feature_selection import VarianceThreshold
 import pandas as pd
@@ -24,6 +24,14 @@ import datatable as dt
 import time
 from sklearn.impute import SimpleImputer
 import seaborn as sns
+from sklearn.model_selection import cross_val_score
+import pandas as pd
+from sklearn.preprocessing import MinMaxScaler, LabelEncoder
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.model_selection import train_test_split
+
 
 
 def code_to_numeric(labels):
@@ -50,12 +58,6 @@ def test_predict(clf, X_test, y_test):
     return results
 
 
-def save_to_csv(file_name,prediction_list):
-    prediction_result = pd.DataFrame()
-    prediction_result['ID'] = [i for i in range(1,1253)]
-    prediction_result['Population'] = prediction_list
-    prediction_result.to_csv(file_name,encoding='utf-8', index=False)
-    return
 
 # %%
 # load the data 
@@ -69,34 +71,30 @@ x_test = x_test.to_pandas()
 
 
 # %%
-
-
-
-
 # data normalization
 # Imputation of the train data
-imp = SimpleImputer(missing_values = -2, strategy = 'mean')
+imp = SimpleImputer(missing_values = -2, strategy = 'most_frequent')
 X_norm = imp.fit_transform(x_train)
-X_test_norm = imp.fit_transform(x_test)
-y_numeric = code_to_numeric(y_train)
+X_test_norm = imp.transform(x_test)
+
+
+
+#le = LabelEncoder()
+#y_numeric = y_train.apply(le.fit_transform) 
+
+
+
 
 # %%
-# dimension reduction 
-pca = PCA(n_components=1149)
+# non-linear dimension reduction 
+kpca = KernelPCA(kernel="rbf", n_components=900)
 time_start = time.time()
-X_reduced=pca.fit_transform(X_norm)
-X_test_reduced = pca.fit_transform(X_test_norm)
 
-
-
+X_reduced=kpca.fit_transform(X_norm)
+X_test_reduced = kpca.transform(X_test_norm)
 
 print(X_reduced.shape)
 print('PCA time: {} seconds'.format(time.time()-time_start))
-
-
-
-
-from sklearn.model_selection import train_test_split
 
 X_train1, X_test1, y_train1, y_test1 = train_test_split(X_reduced,y_numeric, test_size = 0.3, random_state = 0)
 
@@ -106,20 +104,78 @@ print('the test dataset has the size', X_test1.shape)
 
 
 
+# %%
+#XGBoost attempt
+
+from xgboost import XGBClassifier
+
+xgb_clf = XGBClassifier(n_estimators=200, learning_rate=0.25)
+xgb_clf.fit(X_train1, y_train1)
+
+score = xgb_clf.score(X_test1, y_test1)
+print(score)
 
 
-# %% [markdown]
-
-# this cell should include the removal of some variables that are useless - see the code you put on slack! covariance matrices are too big so you can't do them tho :(
-
-#remove constant features:
-
-#from sklearn.feature_selection import VarianceThreshold
-
-#https://stackabuse.com/applying-filter-methods-in-python-for-feature-selection/
 
 # %%
 
+prediction = xgb_clf.predict(X_test_reduced)
+
+# %%
+
+code_dict = {code:num for num, code in enumerate(np.unique(y_train))}
+
+
+def get_keys_by_value(dict, value):
+    list_of_keys = []
+    list_of_items = dict.items()
+    list_of_items = dict.items()
+    for item in list_of_items:
+        if item[1] == value:
+            list_of_keys.append(item[0])
+    return list_of_keys
+
+
+def numeric_to_code(predictions, code_dict):
+    code_list = []
+    for id, pred in enumerate(predictions):
+        code_string = get_keys_by_value(code_dict, pred)
+        code_list.append(code_string[0])
+
+    return code_list
+
+
+results = numeric_to_code(prediction, code_dict)
+
+
+
+# %%
+#gradient boosting classifiers 
+lr_list = [0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1]
+
+for learning_rate in lr_list:
+    gb_clf = GradientBoostingClassifier(n_estimators=200, learning_rate=learning_rate, max_features=2, max_depth=2, random_state=0)
+    gb_clf.fit(X_train1, y_train1)
+
+    print("Learning rate: ", learning_rate)
+    print("Accuracy score (training): {0:.3f}".format(gb_clf.score(X_train1, y_train1)))
+    print("Accuracy score (validation): {0:.3f}".format(gb_clf.score(X_test1, y_test1)))
+
+
+
+# %%
+# linear dimension reduction 
+pca = PCA(n_components=1149)
+time_start = time.time()
+X_reduced=pca.fit_transform(X_norm)
+X_test_reduced = pca.transform(X_test_norm)
+
+
+X_train1, X_test1, y_train1, y_test1 = train_test_split(X_reduced,y_numeric, test_size = 0.3, random_state = 0)
+
+
+print('the training dataset has the size', X_train1.shape)
+print('the test dataset has the size', X_test1.shape)
 
 
 # %%
@@ -204,6 +260,6 @@ print('Accuracy of RF on test set: {:.2f}'.format(rf.score(X_test1, y_test1)))
 
 # %%
 
-save_to_csv("attempt", predicted)
+save_to_csv("attempt_2", results)
 
 # %%

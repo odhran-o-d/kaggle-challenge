@@ -110,7 +110,7 @@ y_train = y_train.to_pandas()
 x_test = x_test.to_pandas()
 # data normalization
 # Imputation of the train data
-imp = SimpleImputer(missing_values = -2, strategy = 'mean')
+imp = SimpleImputer(missing_values = -2, strategy = 'most_frequent')
 X_norm = imp.fit_transform(x_train)
 
 
